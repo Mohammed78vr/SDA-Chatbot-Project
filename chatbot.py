@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # Set page title
 st.title("Chatbot basic")
 
-# Load environment variables
+# Load environment variablesdd
 load_dotenv()
 
 # Create OpenAI client
