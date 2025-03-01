@@ -2,7 +2,7 @@
 
 ## Welcome to Stage 3 of Capstone project!
 
-### ### Stage Introduction
+### Stage Introduction
 In this stage, we enhance our basic chatbot, built with **Streamlit and FastAPI**, by adding **chat history storage**. Now, conversations are saved locally, and session details are logged in a **PostgreSQL database**, allowing users to continue their chats seamlessly.
 
   
