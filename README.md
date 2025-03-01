@@ -16,7 +16,11 @@ By  **separating responsibilities**—Streamlit for the frontend, FastAPI for ba
 
 ### How to Get Started
 In this stage, we create a new Database called `chatbot`:
-```CREATE  DATABASE  chatbot;```
+
+```
+CREATE  DATABASE  chatbot;
+```
+
 Then, we create a   **new table** called `chats` in PostgreSQL to store chat history. Use the following schema:
 ```
 CREATE TABLE IF NOT EXISTS chats (
