@@ -8,7 +8,7 @@
 chat_logs
 pdf_store
 chroma.log
-
+choroma-db
 # User-specific files
 *.rsuser
 *.suo
