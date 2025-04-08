@@ -80,286 +80,33 @@ This enhancement integrates seamlessly with our existing setup—Streamlit for t
 ### How to Get Started
 #### **Step 1: Adding custom data to the VM**
 
-In this stage, while creating the VM in Azure use this script in custom data:
+# Grant KeyVault Access To Azure VM
 
-```
-#!/bin/bash
+## 1. Set up System Managed Identity for VM
+1. Navigate to your Azure VM and click `Security` then `Identity`.
 
-sudo apt update
-sudo apt install -y gnupg2 wget
+2. In the *System assigned* tab change the status to **ON**, and then click `Save`.
 
-sudo -u azureuser mkdir -p /home/azureuser/miniconda3
-sudo -u azureuser wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /home/azureuser/miniconda3/miniconda.sh
-sudo -u azureuser bash /home/azureuser/miniconda3/miniconda.sh -b -u -p /home/azureuser/miniconda3
-sudo -u azureuser rm /home/azureuser/miniconda3/miniconda.sh
+   ![vm-identity](img/vm-identity.png)
 
-echo 'export PATH="/home/azureuser/miniconda3/bin:$PATH"' | sudo -u azureuser tee -a /home/azureuser/.bashrc
+## 2. Grant KeyVault Access
 
+1. Navigate to your Azure VM and click `Access control(IAM)`.
 
-sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
-sudo apt update
-sudo apt install -y postgresql-16 postgresql-contrib-16 postgresql-client-16
+2. Click `+Add` and then click `Add role assignment`.
 
+   ![kv-addrole](img/kv-addrole.png)
 
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-```
-#### **Step 2: Setting up a bash script to run the app in the VM**
-Then, we will create a **new** file with extension .sh e.g. `setup.sh`. Then copy and paste the script to it and save. 
-```
-#!/bin/bash
-set -e
+3. In the *Role* tab, search and select `Key Vault Secrets User`.
 
-date
-echo "Updating Python application on VM..."
+   ![kv-selectrole](img/kv-selectrole.png)
 
-HOME_DIR=$(eval echo ~$USER)
-APP_DIR="$HOME_DIR/SDA-Chatbot-Project"
-REPO_URL="https://github.com/Mohammed78vr/SDA-Chatbot-Project.git"
-BRANCH="main"
-GITHUB_TOKEN=$TOKEN  # Passed securely via protectedSettings
+4. Switch to the *Members* tab, for the `Assign access to` select `Managed identity`, and then click `+Select members`. Then in the pop-up window, select the **Subscription of your VM**, and then choose **`Virtual machine`** for the `Managed identity`, then click the **name of your VM**. Click `Select` once you selected your VM.
 
-# Update code
-if [ -d "$APP_DIR" ]; then
-    sudo -u azureuser bash -c "cd $APP_DIR && git fetch origin && git reset --hard origin/$BRANCH"
-else
-    sudo -u azureuser git clone -b "$BRANCH" "https://${GITHUB_TOKEN}@${REPO_URL}" "$APP_DIR"
-fi
+   ![kv-selectmember](img/kv-selectmember.png)
 
-# Install dependencies
-sudo -u azureuser $HOME_DIR/miniconda3/envs/project/bin/pip install --upgrade pip
-sudo -u azureuser $HOME_DIR/miniconda3/envs/project/bin/pip install -r "${APP_DIR}/requirements.txt"
+5. Finally click the `Review + assign` to finish the assignment.
 
-# Restart the service
-sudo systemctl restart backend
-sudo systemctl is-active --quiet backend || echo "Backend failed to start"
-sudo systemctl restart frontend
-sudo systemctl is-active --quiet frontend || echo "frontend failed to start"
+6. Now in the *Role assignments* tab, you can see that the VM is already have the access. It should be under the *Key Vault Secrets User* section.
 
-echo "Python application update completed!"
-```
-
-To run this, you need to provide 7 arguments to the bash script:  
-
-1.  **PAT_token**: Your GitHub personal access token.
-2.  **repo_url**: The URL of your GitHub repository  **(without `https://`)**.
-3.  **branch_name**: The branch name to use on the VM.
-4.  **db_host**: The database host (e.g.,  `example.postgres.database.azure.com`.
-5.  **target_db**: The name of the database you wish to create.
-6.  **db_username**: The username for the database server.
-7.  **db_password**: The password for the database server.
-
-To run the setup script using this command with the appropriate arguments:  
-`bash setup.sh <PAT_token> <repo_url> <branch_name> <db_host> <target_db> <db_username> <db_password>`
-
-#### **Step 3: Configure Environment Variables**
-
-Store your **OpenAI API key**, **Azure database credentials** in a `.env` file.
-
-Your `.env` file should look like this:
-```
-OPENAI_API_KEY=sk-...
-DB_NAME=<azure postgres database name>
-DB_USER=<azure postgres user name>
-DB_PASSWORD=<azure postgres user password>
-DB_HOST=<azure postgres server name>
-DB_PORT=5432
-AZURE_STORAGE_SAS_URL=...
-AZURE_STORAGE_CONTAINER=...
-CHROMADB_HOST=<public ip of the chromadb vm>
-CHROMADB_PORT=8000
-```
->  **Note:** Make sure that you enable Allow public access from any Azure service within Azure to this server and +Add current client IP address.
-
-#### **Step 4: Restart the backend service**
-
- After adding the `.env` file, you need to restart the backend service using the following command:
- ```
- sudo systemctl restart backend.service
-```
-to check if the backend service is running use the command:
-```
-sudo systemctl status backend.service
-```
-#### **Step 5: Test the application**
-
-To check if the application is running run the command:
-```
-sudo systemctl status frontend.service
-```
-Then use the external Ip address to open the application in the browser.
->  **Note:** Make sure that you add inbound rule in the network security group to allow the port 8501 for the streamlit.
-
-#### **Step 6: preparing files for the CI/CD in GitHub Action**
-First, create a file with the name `update_app.sh` in the repository directory. Then, copy and paste this script:
-```
-#!/bin/bash
-
-set  -e
-
-  
-
-date
-
-echo  "Updating Python application on VM..."
-
-  
-
-HOME_DIR=$(eval  echo  ~$USER)
-
-APP_DIR="$HOME_DIR/SDA-Chatbot-Project"
-
-REPO_URL="https://github.com/<your_github_account>/SDA-Chatbot-Project.git"
-
-BRANCH="main"
-
-GITHUB_TOKEN=$TOKEN  # Passed securely via protectedSettings
-
-  
-
-# Update code
-
-if [ -d  "$APP_DIR" ]; then
-
-sudo  -u  azureuser  bash  -c  "cd $APP_DIR && git fetch origin && git reset --hard origin/$BRANCH"
-
-else
-
-sudo  -u  azureuser  git  clone  -b  "$BRANCH"  "https://${GITHUB_TOKEN}@${REPO_URL}"  "$APP_DIR"
-
-fi
-
-  
-
-# Install dependencies
-
-sudo  -u  azureuser  $HOME_DIR/miniconda3/envs/project/bin/pip  install  --upgrade  pip
-
-sudo  -u  azureuser  $HOME_DIR/miniconda3/envs/project/bin/pip  install  -r  "${APP_DIR}/requirements.txt"
-
-  
-
-# Restart the service
-
-sudo  systemctl  restart  backend
-
-sudo  systemctl  is-active  --quiet  backend  ||  echo  "Backend failed to start"
-
-sudo  systemctl  restart  frontend
-
-sudo  systemctl  is-active  --quiet  frontend  ||  echo  "frontend failed to start"
-
-  
-
-echo  "Python application update completed!"
-```
-
-Then, Create a workflow directory in the repository directory like this:
-```.github/workflows/deploy.yml```
-
-After that past this yaml script:
-```
-name: Python App CI/CD Pipeline with Direct Deployment
-
-  
-
-on:
-
-push:
-
-branches:
-
-- main
-
-  
-
-jobs:
-
-build-and-deploy:
-
-runs-on: ubuntu-latest
-
-  
-
-steps:
-
-# Checkout the repository
-
-- name: Checkout code
-
-uses: actions/checkout@v4
-
-  
-
-# Set up Python environment
-
-- name: Set up Python
-
-uses: actions/setup-python@v5
-
-with:
-
-python-version: '3.11'
-
-cache: 'pip'  # caching pip dependencies
-
-- run: |
-
-pip install -r requirements.txt
-
-  
-
-# Run tests (Placeholder for actual tests)
-
-- name: Run tests
-
-run: |
-
-echo "Run tests"
-
-  
-
-# Azure Login using GitHub Secrets
-
-- name: Azure Login
-
-uses: azure/login@v2.2.0
-
-with:
-
-creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-  
-
-# Execute the Update Script on the VM
-
-- name: Deploy to Azure VM
-
-run: |
-
-az vm extension set \
-
---resource-group ${{ secrets.RESOURCE_GROUP }} \
-
---vm-name ${{ secrets.VM_NAME }} \
-
---name CustomScript \
-
---force-update \
-
---publisher Microsoft.Azure.Extensions \
-
---settings '{"fileUris": []}' \
-
---protected-settings '{"commandToExecute": "export GITHUB_TOKEN=${{ secrets.TOKEN }} && sudo -u azureuser bash /home/azureuser/SDA-Chatbot-Project/update_app.sh"}'
-```
->  **Note:** make sure to create a secrets in the repository, 
-
- - AZURE_CREDENTIALS
- - RESOURCE_GROUP
- - TOKEN: Personal access Token for GitHub.
- - VM_NAME
-
-#### **Step 7: Make changes and push the main**
-try changing something in the chatbot code and then push it to the main.
+   ![kv-check](img/kv-check.png)
