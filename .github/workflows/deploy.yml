@@ -41,7 +41,6 @@ jobs:
           --resource-group ${{ secrets.RESOURCE_GROUP }} \
           --vmss-name ${{ secrets.VMSS_NAME }} \
           --name CustomScript \
-          --enable-auto-upgrade true \
           --force-update \
           --publisher Microsoft.Azure.Extensions \
           --settings '{"fileUris": []}' \
