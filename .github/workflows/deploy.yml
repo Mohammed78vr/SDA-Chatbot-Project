@@ -45,3 +45,10 @@ jobs:
           --publisher Microsoft.Azure.Extensions \
           --settings '{"fileUris": []}' \
           --protected-settings '{"commandToExecute": "export GITHUB_TOKEN=${{ secrets.TOKEN }} && sudo -u azureuser bash /home/azureuser/SDA-Chatbot-Project/update_app.sh"}'
+
+    - name: upgrade to Azure VMSS
+      run: |
+        az vmss extension set \
+          --resource-group ${{ secrets.RESOURCE_GROUP }} \
+          --vmss-name ${{ secrets.VMSS_NAME }} \
+          --enable-auto-upgrade "{true}"
