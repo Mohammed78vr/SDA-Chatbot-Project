@@ -40,7 +40,7 @@ jobs:
         az vmss extension set \
           --resource-group ${{ secrets.RESOURCE_GROUP }} \
           --vmss-name ${{ secrets.VMSS_NAME }} \
-          --enable-auto-upgrade { true } \
+          --enable-auto-upgrade true \
           --name CustomScript \
           --force-update \
           --publisher Microsoft.Azure.Extensions \
