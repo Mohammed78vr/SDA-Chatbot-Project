@@ -49,6 +49,8 @@ jobs:
     - name: upgrade to Azure VMSS
       run: |
         az vmss extension set \
+          --name UpgradeVMSS \
+          --publisher Microsoft.Azure.Extensions \
           --resource-group ${{ secrets.RESOURCE_GROUP }} \
           --vmss-name ${{ secrets.VMSS_NAME }} \
           --enable-auto-upgrade true
