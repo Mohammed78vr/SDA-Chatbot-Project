@@ -1,112 +1,71 @@
-# SDA-Chatbot-Project
+# SDA-bootcamp-project
 
-  
+Stage 7 - RAG Chatbot(Serverless Backebd)
 
-## Welcome to Stage 6 of Capstone project!
+At this stage, we will move our backend functions to the Azure Function App. Which means we gonna convert the `backend.py` to the Azure Function. We will use **Azure Function V2** here. We also switch the Stream Respons back to normal Http Response since this is a new function added in Azure Function and it will cause issue with incorrent Azure Function Runtime Version.
 
-### Stage 6: Enhanced Infrastructure for Document-Aware Chatbot
+Another changes is that, in the `upload_pdf` function, we change the temporary store location for pdf file to `/tmp` since this is the only writable path for azure function.
 
-In Stage 6, the **SDA-Chatbot** project introduces a robust and scalable infrastructure, integrating cutting-edge tools to support Retrieval-Augmented Generation (RAG) capabilities for document-focused chatbot interactions.
+For the database we still use the `advanced_chats` table with following schema:
+```
+CREATE TABLE IF NOT EXISTS advanced_chats (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    file_path TEXT NOT null,
+    last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    pdf_path TEXT,
+    pdf_name TEXT,
+    pdf_uuid TEXT
+)
+```
 
-#### **Infrastructure Overview**
+Since we convert to the Azure Function, we need to store the Azure Key Vault name in the `local.settings.json` under the `azure-function` folder. The `local.settings.json` should look like:
 
-The system now incorporates the following components, as illustrated in the diagram:
+```
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "KEY_VAULT_NAME":<YOUR-KEY-VAULT>,
+  }
+}
+```
 
-1.  **User Interaction:**
-    
-    -   Users interact with the chatbot through a web interface, enabling both casual conversations and document-specific queries by uploading PDFs.
-        
-2.  **Secure Azure VM:**
-    
-    -   The core of the architecture is an Azure Virtual Machine (VM), which hosts the system’s key services within a secure environment:
-        
-        -   **Subnet with NSG (Network Security Group):** Provides controlled and secure access.
-            
-        -   **Disk Storage:** Ensures data persistence for the application and supporting services.
-            
-        -   **Network Interfaces:** Facilitates communication between the VM and external systems.
-            
-3.  **Backend Services:**
-    
-    -   The VM runs **Streamlit** for the user interface and **FastAPI** for backend business logic, ensuring a seamless and responsive experience.
-        
-4.  **Data Storage with PostgreSQL:**
-    
-    -   All chat data and relevant metadata are securely stored in a PostgreSQL database.
-        
-5.  **Chroma for Context Retrieval:**
-    
-    -   **Chroma**, a vector store, plays a crucial role by indexing and retrieving relevant sections of uploaded PDFs to enhance the chatbot’s ability to answer document-specific questions.
-        
-6.  **GitHub Actions for Automation:**
-    
-    -   The project leverages GitHub Actions to automate deployment and updates, ensuring continuous delivery and integration.
-        
+When deploy to the Azure function, don't forget to upload the `local.settings.json` to the cloud.
 
-#### **Key Benefits of This Stage**
+And for other credentials, we can still put them in the Azure Key Vault secret.
 
--   Enables users to interact with uploaded PDF content in a meaningful way.
-    
--   Enhances response accuracy through context-aware retrieval.
-    
--   Builds on the existing system architecture with scalable and modular components.
-    
+And since the front-end is still running on the instance and it needs to connect to the Azure Function APP, so let's store the Function URL in the Azure KeyVault as well.
+In this case, to allow the front-end able to load the URL from secret, we need to update the front-end codes a little bit and store the `KEY_VAULT_NAME` in the `.env` file on the instance where we run the front-end.
+Please make sure your instance has the permission to load the secret from the KeyVault.
 
-This expanded setup lays the foundation for future enhancements, making the chatbot not only more powerful but also ready for real-world applications.
+Now, the following secrets should be created in your Azure KeyVault:
 
-> **Note:** The added complexity in this stage demonstrates a real-world application of RAG-based systems. Feel free to explore the infrastructure and codebase to understand how these components come together.
-  
+```
+PROJ-DB-NAME
+PROJ-DB-USER
+PROJ-DB-PASSWORD
+PROJ-DB-HOST
+PROJ-DB-PORT
+PROJ-OPENAI-API-KEY
+PROJ-AZURE-STORAGE-SAS-URL
+PROJ-AZURE-STORAGE-CONTAINER
+PROJ-CHROMADB-HOST
+PROJ-CHROMADB-PORT
+PROJ-BASE-ENDPOINT-URL
+```
 
-  
+The value of PROJ-BASE-ENDPOINT-URL is like `https://<your-function-app-name>.azurewebsites.net/api/`
 
-![Alt text](stage-6.png  "a title")
+We still need to run the ChromaDB and streamlit in the VM. Using the follow command to start the Chroma server:
+```
+chroma run --host 0.0.0.0 --path chromadb
+```
+change `/db_path` to the path you want to store the data, for example: `chromadb`.
 
-  
-
-  
-
-Under the hood, the system uses a **vector store (Chroma)** to retrieve the most relevant context from uploaded PDFs. This retrieval step enhances the chatbot’s ability to provide accurate, context-aware answers, bridging the gap between simple conversation and document-focused queries.
-
-  
-
-This enhancement integrates seamlessly with our existing setup—Streamlit for the user interface, FastAPI for business logic, and PostgreSQL for data storage—while laying the foundation for further expansion.
-
-  
-
->  **Note:** Some LLM-related concepts introduced in this stage may seem complex. However, our main goal is to get the project running, and fully understanding the LLM integration is **optional**. If you’re interested, feel free to explore the code and additional resources to enhance your project, but don’t worry if you don’t grasp everything right away.
-
-  
-
-### How to Get Started
-#### **Step 1: Adding custom data to the VM**
-
-# Grant KeyVault Access To Azure VM
-
-## 1. Set up System Managed Identity for VM
-1. Navigate to your Azure VM and click `Security` then `Identity`.
-
-2. In the *System assigned* tab change the status to **ON**, and then click `Save`.
-
-   ![vm-identity](img/vm-identity.png)
-
-## 2. Grant KeyVault Access
-
-1. Navigate to your Azure VM and click `Access control(IAM)`.
-
-2. Click `+Add` and then click `Add role assignment`.
-
-   ![kv-addrole](img/kv-addrole.png)
-
-3. In the *Role* tab, search and select `Key Vault Secrets User`.
-
-   ![kv-selectrole](img/kv-selectrole.png)
-
-4. Switch to the *Members* tab, for the `Assign access to` select `Managed identity`, and then click `+Select members`. Then in the pop-up window, select the **Subscription of your VM**, and then choose **`Virtual machine`** for the `Managed identity`, then click the **name of your VM**. Click `Select` once you selected your VM.
-
-   ![kv-selectmember](img/kv-selectmember.png)
-
-5. Finally click the `Review + assign` to finish the assignment.
-
-6. Now in the *Role assignments* tab, you can see that the VM is already have the access. It should be under the *Key Vault Secrets User* section.
-
-   ![kv-check](img/kv-check.png)
+And then use
+```
+streamlit run chatbot.py
+```
+to run the streamlit app.
