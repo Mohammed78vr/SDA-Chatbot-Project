@@ -1,40 +1,28 @@
 # SDA-bootcamp-project
 
-Stage 7 - RAG Chatbot(Serverless Backebd)
+Stage 8 - RAG Chatbot(Serverless Backebd Cont.)
 
-At this stage, we will move our backend functions to the Azure Function App. Which means we gonna convert the `backend.py` to the Azure Function. We will use **Azure Function V2** here. We also switch the Stream Respons back to normal Http Response since this is a new function added in Azure Function and it will cause issue with incorrent Azure Function Runtime Version.
+At this stage, we will move the chat history from files in the Blob Storage to the CosmosDB.
 
-Another changes is that, in the `upload_pdf` function, we change the temporary store location for pdf file to `/tmp` since this is the only writable path for azure function.
-
-For the database we still use the `advanced_chats` table with following schema:
+For the database we will Remove the `file_path` column in the `advanced_chats` table:
 ```
 CREATE TABLE IF NOT EXISTS advanced_chats (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    file_path TEXT NOT null,
+    -- file_path TEXT NOT null,
     last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     pdf_path TEXT,
     pdf_name TEXT,
     pdf_uuid TEXT
 )
 ```
+Or if you want you can create a new table called `advanced_chats_new` using above query.
 
-Since we convert to the Azure Function, we need to store the Azure Key Vault name in the `local.settings.json` under the `azure-function` folder. The `local.settings.json` should look like:
+> **Note:** The codes in this branch is just the showcase that how to interact with CosmosDB, so we **only** store the chat history to the CosmosDB. Actually students can upload all the metadata to the CosmosDB to replace the PostgreSQL. In that case, we also make the database fully serverless.
 
-```
-{
-  "IsEncrypted": false,
-  "Values": {
-    "AzureWebJobsStorage": "",
-    "FUNCTIONS_WORKER_RUNTIME": "python",
-    "KEY_VAULT_NAME":<YOUR-KEY-VAULT>,
-  }
-}
-```
+Since we need to add the CosmosDB connection in the Azure Function, we also need to store the `PROJ-COSMOSDB-ENDPOINT`, `PROJ-COSMOSDB-KEY`, `PROJ-COSMOSDB-DATABASE`, `PROJ-COSMOSDB-CONTAINER` in the **Azure Key Vault**.
 
 When deploy to the Azure function, don't forget to upload the `local.settings.json` to the cloud.
-
-And for other credentials, we can still put them in the Azure Key Vault secret.
 
 And since the front-end is still running on the instance and it needs to connect to the Azure Function APP, so let's store the Function URL in the Azure KeyVault as well.
 In this case, to allow the front-end able to load the URL from secret, we need to update the front-end codes a little bit and store the `KEY_VAULT_NAME` in the `.env` file on the instance where we run the front-end.
@@ -54,13 +42,17 @@ PROJ-AZURE-STORAGE-CONTAINER
 PROJ-CHROMADB-HOST
 PROJ-CHROMADB-PORT
 PROJ-BASE-ENDPOINT-URL
+PROJ-COSMOSDB-ENDPOINT
+PROJ-COSMOSDB-KEY
+PROJ-COSMOSDB-DATABASE
+PROJ-COSMOSDB-CONTAINER
 ```
 
 The value of PROJ-BASE-ENDPOINT-URL is like `https://<your-function-app-name>.azurewebsites.net/api/`
 
 We still need to run the ChromaDB and streamlit in the VM. Using the follow command to start the Chroma server:
 ```
-chroma run --host 0.0.0.0 --path chromadb
+chroma run --host 0.0.0.0 --path /db_path
 ```
 change `/db_path` to the path you want to store the data, for example: `chromadb`.
 
