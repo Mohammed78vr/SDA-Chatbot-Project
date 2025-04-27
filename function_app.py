@@ -36,10 +36,10 @@ AZURE_STORAGE_SAS_URL = kv_client.get_secret('PROJ-AZURE-STORAGE-SAS-URL').value
 AZURE_STORAGE_CONTAINER = kv_client.get_secret('PROJ-AZURE-STORAGE-CONTAINER').value
 CHROMADB_HOST = kv_client.get_secret('PROJ-CHROMADB-HOST').value
 CHROMADB_PORT = kv_client.get_secret('PROJ-CHROMADB-PORT').value
-cosmos_endpoint = kv_client.get_secret('PROJ-COSMOSDB-ENDPOINT').value
-cosmos_key = kv_client.get_secret('PROJ-COSMOSDB-KEY').value
-cosmos_database = kv_client.get_secret('PROJ-COSMOSDB-DATABASE').value
-cosmos_container = kv_client.get_secret('PROJ-COSMOSDB-CONTAINER').value
+COSMOS_ENDPOINT = kv_client.get_secret('PROJ-COSMOSDB-ENDPOINT').value
+COSMOS_KEY = kv_client.get_secret('PROJ-COSMOSDB-KEY').value
+COSMOS_DATABASE = kv_client.get_secret('PROJ-COSMOSDB-DATABASE').value
+COSMOS_CONTAINER = kv_client.get_secret('PROJ-COSMOSDB-CONTAINER').value
 
 chat_client = OpenAI(api_key=OPENAI_API_KEY)
 model = "gpt-3.5-turbo"
@@ -86,9 +86,9 @@ async def load_chat(req: func.HttpRequest) -> func.HttpResponse:
             chat_id, name, pdf_name, pdf_path, pdf_uuid= row["id"], row["name"], row["pdf_name"], row["pdf_path"], row["pdf_uuid"]
 
             # Load from CosmosDB
-            client = CosmosClient(cosmos_endpoint, cosmos_key)
-            database = client.get_database_client(cosmos_database)
-            container = database.get_container_client(cosmos_container)
+            client = CosmosClient(COSMOS_ENDPOINT, COSMOS_KEY)
+            database = client.get_database_client(COSMOS_DATABASE)
+            container = database.get_container_client(COSMOS_CONTAINER)
 
             query = "SELECT * FROM c Where c.id = @chat_id"
             parameters = [{"name": "@chat_id", "value": chat_id}]
@@ -117,9 +117,9 @@ async def save_chat(req: func.HttpRequest) -> func.HttpResponse:
 
         messages_data = json.dumps(req.get_json()["messages"], ensure_ascii=False, indent=4)
 
-        client = CosmosClient(cosmos_endpoint, cosmos_key)
-        database = client.get_database_client(cosmos_database)
-        container = database.get_container_client(cosmos_container)
+        client = CosmosClient(COSMOS_ENDPOINT, COSMOS_KEY)
+        database = client.get_database_client(COSMOS_DATABASE)
+        container = database.get_container_client(COSMOS_CONTAINER)
 
         chat_data = {
             "id": chat_id,
@@ -170,9 +170,9 @@ async def delete_chat(req: func.HttpRequest) -> func.HttpResponse:
         db.commit()
         db.close()
 
-        client = CosmosClient(cosmos_endpoint, cosmos_key)
-        database = client.get_database_client(cosmos_database)
-        container = database.get_container_client(cosmos_container)
+        client = CosmosClient(COSMOS_ENDPOINT, COSMOS_KEY)
+        database = client.get_database_client(COSMOS_DATABASE)
+        container = database.get_container_client(COSMOS_CONTAINER)
 
         container.delete_item(
             item=req.get_json()["chat_id"],           
